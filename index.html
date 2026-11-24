@@ -1,0 +1,397 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+<meta charset="UTF-8">
+
+<meta name="viewport"
+content="width=device-width, initial-scale=1.0">
+
+<title>Car Motion and Sound Simulator</title>
+
+<style>
+
+body {
+    font-family: Arial, sans-serif;
+    background: #0f172a;
+    color: white;
+    text-align: center;
+    margin: 0;
+    padding: 20px;
+}
+
+h1 {
+    color: #38bdf8;
+}
+
+.container {
+    background: #1e293b;
+    padding: 25px;
+    border-radius: 15px;
+    max-width: 850px;
+    margin: auto;
+}
+
+.speed {
+    font-size: 35px;
+    color: #22c55e;
+    margin: 20px;
+}
+
+.status {
+    font-size: 20px;
+    color: yellow;
+}
+
+.road {
+    width: 100%;
+    height: 130px;
+    background: #374151;
+    position: relative;
+    overflow: hidden;
+    margin-top: 30px;
+    border-bottom: 6px solid white;
+}
+
+.car {
+    position: absolute;
+    font-size: 65px;
+    bottom: 15px;
+    left: 0;
+    transform: scaleX(-1);
+}
+
+button {
+    padding: 15px 25px;
+    margin: 10px;
+    border: none;
+    border-radius: 8px;
+    font-size: 16px;
+    cursor: pointer;
+    color: white;
+}
+
+.start {
+    background: green;
+}
+
+.stop {
+    background: red;
+}
+
+.reset {
+    background: #64748b;
+}
+
+input[type="range"] {
+    width: 70%;
+}
+
+progress {
+    width: 80%;
+    height: 25px;
+}
+
+</style>
+
+</head>
+
+<body>
+
+<div class="container">
+
+<h1>CAR MOTION AND SOUND CONTROL</h1>
+
+<h2>Windows IIS Web Application</h2>
+
+<div class="speed" id="speed">
+Speed: 0 km/h
+</div>
+
+<div class="status" id="status">
+Status: Car at Rest
+</div>
+
+<br>
+
+<progress id="speedBar"
+value="0"
+max="100">
+</progress>
+
+<div class="road">
+
+<div class="car" id="car">
+🚗
+</div>
+
+</div>
+
+<h3>Engine Sound Volume</h3>
+
+<input
+type="range"
+id="volume"
+min="0"
+max="100"
+value="50"
+oninput="changeVolume()">
+
+<p id="volumeValue">
+Volume: 50%
+</p>
+
+<br>
+
+<button class="start"
+onclick="startCar()">
+START CAR
+</button>
+
+<button class="stop"
+onclick="stopCar()">
+STOP CAR
+</button>
+
+<button class="reset"
+onclick="resetCar()">
+RESET
+</button>
+
+</div>
+
+<script>
+
+let speed = 0;
+
+let maxSpeed = 100;
+
+let running = false;
+
+let phase = "REST";
+
+let position = 0;
+
+let timer = null;
+
+let uniformTimer = null;
+
+let audioContext = null;
+
+let oscillator = null;
+
+let gainNode = null;
+
+
+// Create engine sound
+
+function startEngineSound() {
+
+    if (audioContext) {
+        stopEngineSound();
+    }
+
+    audioContext = new (
+        window.AudioContext ||
+        window.webkitAudioContext
+    )();
+
+    oscillator = audioContext.createOscillator();
+
+    gainNode = audioContext.createGain();
+
+    oscillator.type = "sawtooth";
+
+    oscillator.frequency.value = 80;
+
+    oscillator.connect(gainNode);
+
+    gainNode.connect(audioContext.destination);
+
+    gainNode.gain.value =
+        document.getElementById("volume").value / 100 * 0.15;
+
+    oscillator.start();
+
+}
+
+
+// Change volume
+
+function changeVolume() {
+
+    let volume =
+        document.getElementById("volume").value;
+
+    document.getElementById("volumeValue").innerText =
+        "Volume: " + volume + "%";
+
+    if (gainNode) {
+
+        gainNode.gain.value =
+            volume / 100 * 0.15;
+
+    }
+
+}
+
+
+// Update engine sound based on speed
+
+function updateEngineSound() {
+
+    if (oscillator) {
+
+        oscillator.frequency.value =
+            80 + speed * 3;
+
+    }
+
+}
+
+
+// Start car
+
+function startCar() {
+
+    if (running) {
+        return;
+    }
+
+    clearInterval(timer);
+    clearTimeout(uniformTimer);
+
+    speed = 0;
+
+    position = 0;
+
+    phase = "ACCELERATING";
+
+    running = true;
+
+    startEngineSound();
+
+    timer = setInterval(updateMotion, 100);
+
+}
+
+
+// Motion simulation
+
+function updateMotion() {
+
+    if (!running) {
+        return;
+    }
+
+    if (phase === "ACCELERATING") {
+
+        speed += 2;
+
+        document.getElementById("status").innerText =
+            "Status: Accelerating";
+
+        if (speed >= maxSpeed) {
+
+            speed = maxSpeed;
+
+            phase = "UNIFORM";
+
+            uniformTimer = setTimeout(function() {
+
+                if (running && phase === "UNIFORM") {
+                    phase = "DECELERATING";
+                }
+
+            }, 5000);
+
+        }
+
+    }
+
+    else if (phase === "UNIFORM") {
+
+        speed = maxSpeed;
+
+        document.getElementById("status").innerText =
+            "Status: Uniform Speed";
+
+    }
+
+    else if (phase === "DECELERATING") {
+
+        speed -= 2;
+
+        document.getElementById("status").innerText =
+            "Status: Decelerating";
+
+        if (speed <= 0) {
+
+            speed = 0;
+
+            running = false;
+
+            phase = "REST";
+
+            clearInterval(timer);
+
+            stopEngineSound();
+
+            document.getElementById("status").innerText =
+                "Status: Car at Rest";
+
+        }
+
+    }
+
+    // Update speed display
+
+    document.getElementById("speed").innerText =
+        "Speed: " + speed + " km/h";
+
+    document.getElementById("speedBar").value =
+        speed;
+
+    // Animate car
+
+    let road = document.querySelector(".road");
+
+    let car = document.getElementById("car");
+
+    let maxPosition =
+        Math.max(0, road.clientWidth - car.offsetWidth);
+
+    position += speed * 0.02;
+
+    if (position > maxPosition) {
+
+        position = 0;
+
+    }
+
+    car.style.left = position + "px";
+
+    updateEngineSound();
+
+}
+
+
+// Stop car
+
+function stopCar() {
+
+    running = false;
+
+    phase = "REST";
+
+    speed = 0;
+
+    clearInterval(timer);
+    clearTimeout(uniformTimer);
+
+    stopEngineSound();
+
+    document.getElementById("speed").innerText =
+        "Speed: 0 km/h";
+
